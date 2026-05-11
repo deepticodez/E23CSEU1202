@@ -8,6 +8,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Initialize token from window.APP_CONFIG if available
+      if (window.APP_CONFIG && window.APP_CONFIG.token) {
+        localStorage.setItem("token", window.APP_CONFIG.token);
+      } else {
+        const existingToken = localStorage.getItem("token");
+        if (!existingToken) {
+          // Token will be initialized later if needed
+        }
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

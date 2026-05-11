@@ -1,5 +1,6 @@
 export interface Notification {
   id: string;
+  title?: string;
   type: "placement" | "result" | "event";
   message: string;
   timestamp: string; // ISO date string

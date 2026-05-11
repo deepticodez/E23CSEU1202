@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import {
+import { mockNotifications } from "../utils/mockData";
+import type {
   Notification,
   NotificationFilters,
   NotificationPagination,
@@ -68,12 +69,35 @@ export const useNotifications = (
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        setState((prev) => ({ ...prev, loading: false, error: errorMessage }));
+        
+        // Fallback to mock data
+        let filteredMocks = mockNotifications;
+        if (filters.notification_type) {
+          filteredMocks = filteredMocks.filter(n => n.type === filters.notification_type);
+        }
+        
+        const startIndex = (page - 1) * state.limit;
+        const paginatedMocks = filteredMocks.slice(startIndex, startIndex + state.limit);
+
+        setState((prev) => ({
+          ...prev,
+          notifications: append
+            ? sortNotificationsByPriority([
+                ...prev.notifications,
+                ...paginatedMocks,
+              ])
+            : sortNotificationsByPriority(paginatedMocks),
+          total: filteredMocks.length,
+          page: page,
+          loading: false,
+          error: `API unavailable. Displaying offline mock data.`,
+        }));
+
         log(
           "frontend",
-          "error",
+          "warn",
           "hook",
-          `Failed to load notifications: ${errorMessage}`,
+          `Failed to load from API, using mock data. Error: ${errorMessage}`,
         );
       }
     },

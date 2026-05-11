@@ -1,4 +1,4 @@
-import { Notification } from "../types/notification";
+import type { Notification } from "../types/notification";
 import { PRIORITY_WEIGHTS } from "./constants";
 
 export const calculatePriorityScore = (notification: Notification): number => {

@@ -1,5 +1,4 @@
-import axios from "axios";
-import { LogRequest, LogLevel, LogPackage } from "../types/notification";
+import type { LogRequest, LogLevel, LogPackage } from "../types/notification";
 import {
   API_BASE_URL,
   LOG_ENDPOINT,
@@ -9,44 +8,74 @@ import {
   ALLOWED_PACKAGES,
 } from "../utils/constants";
 
+let isLoggingDisabled = sessionStorage.getItem("loggingDisabled") === "true";
+let activeLogRequest: Promise<any> | null = null;
+
 export const log = async (
   stack: "frontend",
   level: LogLevel,
   packageName: LogPackage,
   message: string,
 ): Promise<void> => {
+  if (isLoggingDisabled) return;
+
+  if (activeLogRequest) {
+    try {
+      await activeLogRequest;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (isLoggingDisabled) return;
+
+  // Validate inputs
+  if (!ALLOWED_STACKS.includes(stack)) {
+    return;
+  }
+  if (!ALLOWED_LEVELS.includes(level)) {
+    return;
+  }
+  if (!ALLOWED_PACKAGES.includes(packageName)) {
+    return;
+  }
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    return;
+  }
+
+  const trimmedToken = token.trim();
+  const logData: LogRequest = {
+    stack,
+    level,
+    packageName,
+    message,
+  };
+
+  const logUrl = `${API_BASE_URL}${LOG_ENDPOINT}`;
+
   try {
-    // Validate inputs
-    if (!ALLOWED_STACKS.includes(stack)) {
-      throw new Error(`Invalid stack: ${stack}`);
-    }
-    if (!ALLOWED_LEVELS.includes(level)) {
-      throw new Error(`Invalid level: ${level}`);
-    }
-    if (!ALLOWED_PACKAGES.includes(packageName)) {
-      throw new Error(`Invalid package: ${packageName}`);
-    }
-
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      throw new Error("No token found in localStorage");
-    }
-
-    const logData: LogRequest = {
-      stack,
-      level,
-      packageName,
-      message,
-    };
-
-    await axios.post(`${API_BASE_URL}${LOG_ENDPOINT}`, logData, {
+    const fetchPromise = fetch(logUrl, {
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${trimmedToken}`,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify(logData),
     });
+
+    activeLogRequest = fetchPromise;
+
+    const response = await fetchPromise;
+    if (response.status === 401) {
+      isLoggingDisabled = true;
+      sessionStorage.setItem("loggingDisabled", "true");
+    }
   } catch (error) {
-    // Safe error handling - do not throw, just silently fail
-    // Since no console.log allowed, we can't log errors here
+    isLoggingDisabled = true;
+    sessionStorage.setItem("loggingDisabled", "true");
+  } finally {
+    activeLogRequest = null;
   }
 };

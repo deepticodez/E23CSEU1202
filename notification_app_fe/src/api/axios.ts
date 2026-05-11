@@ -1,4 +1,5 @@
-import axios, { AxiosInstance, AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
+import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL, TOKEN_KEY } from "../utils/constants";
 import { log } from "../middleware/logger";
 
@@ -12,11 +13,16 @@ const axiosInstance: AxiosInstance = axios.create({
 
 // Request interceptor to add token
 axiosInstance.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem(TOKEN_KEY);
+
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      const trimmedToken = token.trim();
+
+      // Set authorization header
+      config.headers.set("Authorization", `Bearer ${trimmedToken}`);
     }
+
     return config;
   },
   (error) => {
@@ -32,14 +38,20 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor for centralized error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error: AxiosError) => {
     const status = error.response?.status;
     const message = error.message || "Unknown error";
+    const url = error.config?.url;
 
     let logMessage = `API Error: ${message}`;
     if (status) {
       logMessage += ` (Status: ${status})`;
+    }
+    if (url) {
+      logMessage += ` [${url}]`;
     }
 
     log("frontend", "error", "api", logMessage);
